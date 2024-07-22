@@ -1,0 +1,3 @@
+PORT  = 
+MONGO_URI = 
+OMDB_API_KEY = 
