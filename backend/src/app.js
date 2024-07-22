@@ -1,6 +1,7 @@
 
 import express from 'express';
 import cors from 'cors';
+import movieRoutes from './routes/movie.routes.js';
 
 
 
@@ -13,8 +14,7 @@ app.use(cors({
 
 app.use(express.json());
 
-app.get('/', (req, res) => {
-    res.send('Hello World!');
-});
+
+app.use('/api/movies', movieRoutes);
 
 export default app;
