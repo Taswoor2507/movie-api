@@ -22,17 +22,25 @@ const searchMovie = async (req, res, next) => {
       return next(new ApiError(404, 'Movie not found'));
     }
 
+    // // Log movie data before saving
+    // console.log('Movie Data:', movieData);
+
+    // Parse runtime
+    const runtimeMinutes = parseInt(movieData.Runtime.split(' ')[0]) || 0;
+    const hours = Math.floor(runtimeMinutes / 60);
+    const minutes = runtimeMinutes % 60;
+
     // Save the movie data to MongoDB
     movie = new Movie({
       title: movieData.Title,
       year: movieData.Year,
-      genre: movieData.Genre,
+      genre: movieData.Genre.split(', ').map(g => g.trim()), // Convert genres to array
       writer: movieData.Writer,
       director: movieData.Director,
       released: new Date(movieData.Released),
       runTime: {
-        hours: parseInt(movieData.Runtime.split(' ')[0].split('h')[0]) || 0,
-        minutes: parseInt(movieData.Runtime.split(' ')[1].split('min')[0]) || 0,
+        hours: hours,
+        minutes: minutes,
         seconds: 0,
       },
       actors: movieData.Actors.split(', '),
@@ -57,6 +65,23 @@ const searchMovie = async (req, res, next) => {
 };
 
 
+const getMovies = async (req, res, next) => {
+  const { genre } = req.query;
+  const query = genre ? { genre: { $in: [genre] } } : {};
+
+  try {
+    // Log the query to verify
+    // console.log('Genre Query:', query);
+
+    const movies = await Movie.find(query);
+    res.json(movies);
+  } catch (error) {
+    return next(new ApiError(500, "An error occurred while retrieving movies"))
+  }
+};
+
+
 export default {
     searchMovie,
+    getMovies,
   };
