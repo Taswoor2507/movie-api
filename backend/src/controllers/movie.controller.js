@@ -1,10 +1,11 @@
 import Movie from '../models/movies.model.js';
 import omdbService from '../services/omdb.service.js';
+import ApiError from '../utils/ErrorHandler.util.js';
 
-const searchMovie = async (req, res) => {
+const searchMovie = async (req, res, next) => {
   const { title } = req.query;
   if (!title) {
-    return res.status(400).json({ error: 'Title query parameter is required' });
+     return next(new ApiError(400 , 'Title query parameter is required'));
   }
 
   try {
@@ -17,7 +18,8 @@ const searchMovie = async (req, res) => {
     // If not found locally, search in OMDb API
     const movieData = await omdbService.fetchMovieByTitle(title);
     if (movieData.Response === 'False') {
-      return res.status(404).json({ error: movieData.Error });
+      
+      return next(new ApiError(404, 'Movie not found'));
     }
 
     // Save the movie data to MongoDB
@@ -50,7 +52,7 @@ const searchMovie = async (req, res) => {
 
     res.json(movie);
   } catch (error) {
-    res.status(500).json({ error: 'An error occurred while searching for the movie' });
+    return next(new ApiError(500 , "An error occurred while searching for the movie" ))
   }
 };
 
