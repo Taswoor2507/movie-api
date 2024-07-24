@@ -4,6 +4,7 @@ import ApiError from '../utils/ErrorHandler.util.js';
 
 const searchMovie = async (req, res, next) => {
   const { title } = req.query;
+  console.log(title);
   if (!title) {
      return next(new ApiError(400 , 'Title query parameter is required'));
   }
