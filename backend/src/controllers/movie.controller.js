@@ -8,6 +8,8 @@ const searchMovie = async (req, res, next) => {
      return next(new ApiError(400 , 'Title query parameter is required'));
   }
 
+
+  
   try {
     // Search in local MongoDB
     let movie = await Movie.findOne({ title: new RegExp(`^${title}$`, 'i') });
