@@ -1,3 +1,4 @@
+import redis from '../utils/redisClient.js';
 import Movie from '../models/movies.model.js';
 import omdbService from '../services/omdb.service.js';
 import ApiError from '../utils/ErrorHandler.util.js';
@@ -5,24 +6,28 @@ import User from '../models/user.model.js';
 
 const searchMovie = async (req, res, next) => {
   const { title } = req.query;
-  console.log(title);
   if (!title) {
-     return next(new ApiError(400 , 'Title query parameter is required'));
+     return next(new ApiError(400, 'Title query parameter is required'));
   }
 
-
-  
   try {
+    // Check Redis cache
+    const cachedMovie = await redis.get(`movie:${title}`);
+    if (cachedMovie) {
+      return res.json(JSON.parse(cachedMovie));
+    }
+
     // Search in local MongoDB
     let movie = await Movie.findOne({ title: new RegExp(`^${title}$`, 'i') });
     if (movie) {
+      // Store in Redis cache
+      await redis.set(`movie:${title}`, JSON.stringify(movie), 'EX', 3600); // Cache for 1 hour
       return res.json(movie);
     }
 
     // If not found locally, search in OMDb API
     const movieData = await omdbService.fetchMovieByTitle(title);
     if (movieData.Response === 'False') {
-      
       return next(new ApiError(404, 'Movie not found'));
     }
 
@@ -59,9 +64,12 @@ const searchMovie = async (req, res, next) => {
     });
     await movie.save();
 
+    // Store in Redis cache
+    await redis.set(`movie:${title}`, JSON.stringify(movie), 'EX', 3600); // Cache for 1 hour
+
     res.json(movie);
   } catch (error) {
-    return next(new ApiError(500 , "An error occurred while searching for the movie" ))
+    return next(new ApiError(500, "An error occurred while searching for the movie"));
   }
 };
 const getMovieById = async (req, res, next) => {
@@ -137,8 +145,10 @@ const getMovies = async (req, res, next) => {
   const query = genre ? { genre: { $in: [genre] } } : {};
 
   try {
-   
-     const movies = await Movie.find(query);
+    // Log the query to verify
+    // console.log('Genre Query:', query);
+
+    const movies = await Movie.find(query);
     res.json(movies);
   } catch (error) {
     return next(new ApiError(500, "An error occurred while retrieving movies"))
