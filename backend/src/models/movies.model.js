@@ -25,7 +25,7 @@ const reviewSchema = new Schema({
   comment: {
     type: String,
     required: true,
-    minlength: 10,
+    minlength: 4,
     maxlength: 300,
   },
   date: {
@@ -122,10 +122,7 @@ const movieSchema = new Schema({
     type: Number,
     default: 0,
   },
-  review: {
-    type: reviewSchema,
-    required: false,
-  }
+  reviews: [reviewSchema]
 }, { timestamps: true });
 
 const Movie = mongoose.model('Movie', movieSchema);

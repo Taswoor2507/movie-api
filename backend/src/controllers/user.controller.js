@@ -9,6 +9,7 @@ const generateToken = (user) => {
   return { accessToken, refreshToken };
 };
 
+
 const registerUser = async (req, res, next) => {
   const { username, email, fullName } = req.body;
 
@@ -24,7 +25,7 @@ const registerUser = async (req, res, next) => {
         const emailHtml = `
           <p>Dear ${existingUser.fullName},</p>
           <p>Your account is pending activation. Please verify your email by clicking the link below:</p>
-          <p><a href="http://localhost:4080/api/users/verify/${existingUser._id}">Verify Email</a></p>
+          <p><a href="http://localhost:5000/api/users/verify/${existingUser._id}">Verify Email</a></p>
         `;
         await sendEmail(email, 'Email Verification', emailHtml);
 
@@ -43,12 +44,13 @@ const registerUser = async (req, res, next) => {
       <p>Username: ${username}</p>
       <p>Status: Pending</p>
       <p>Please verify your email by clicking the link below:</p>
-      <p><a href="http://localhost:4080/api/users/verify/${newUser._id}">Verify Email</a></p>
+      <p><a href="http://localhost:5000/api/users/verify/${newUser._id}">Verify Email</a></p>
     `;
     await sendEmail(email, 'Email Verification', emailHtml);
 
     res.status(201).json({ message: 'User registered successfully and verification email sent', user: newUser });
   } catch (error) {
+    console.error('Error during user registration:', error);
     next(new ApiError(500, 'An error occurred while registering the user', [], error.stack));
   }
 };
@@ -95,7 +97,10 @@ const activateUser = async (req, res, next) => {
     // Generate JWT tokens after activation
     const { accessToken, refreshToken } = generateToken(user);
     user.refreshToken = refreshToken;
+    console.log("accessToken: " + accessToken)
+    console.log("refreshToken: " + refreshToken)
     await user.save();
+
 
     res.status(200).json({ message: 'User activated successfully'});
   } catch (error) {
