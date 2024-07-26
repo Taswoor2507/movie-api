@@ -1,10 +1,13 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/user.model.js';
 import ApiError from '../utils/ErrorHandler.util.js';
+import dotenv from 'dotenv';
+
+// Load environment variables from .env file
+dotenv.config();
 
 
 
-const JWT_SECRET = 'your_jwt_secret';
 const auth = async (req, res, next) => {
 
   const token = req.header('x-auth-token');
@@ -15,7 +18,7 @@ const auth = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token,JWT_SECRET);
+    const decoded = jwt.verify(token,process.env.JWT_SECRET);
     req.user = decoded.id;
 
     const user = await User.findById(req.user);

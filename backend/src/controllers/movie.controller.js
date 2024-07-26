@@ -98,6 +98,60 @@ const getMovieById = async (req, res, next) => {
   }
 };
 
+<<<<<<< Updated upstream
+=======
+// const rateMovie = async (req, res, next) => {
+//   const { id } = req.params;
+//   const { rating, review } = req.body;
+
+//   if (!rating || !review) {
+//     return next(new ApiError(400 , 'Rating and review are required'));
+//   }
+
+//   try {
+//     const user = await User.findById(req.user);
+//     if (!user) {
+//       return next(new ApiError(401 , 'User not found'));
+//     }
+
+//     const movie = await Movie.findById(id);
+//     if (!movie) {
+//       return next(new ApiError(404 , 'Movie not found'));
+//     }
+
+//     let totalRating = movie.reviews.reduce((acc, review) => acc + review.rating, 0);
+//     const existingReviewIndex = movie.reviews.findIndex(r => r.user.toString() === req.user);
+
+//     if (existingReviewIndex !== -1) {
+//       // Update existing review
+//       totalRating -= movie.reviews[existingReviewIndex].rating;
+//       movie.reviews[existingReviewIndex].rating = rating;
+//       movie.reviews[existingReviewIndex].comment = review;
+//     } else {
+//       // Add new review
+//       const newReview = {
+//         user: req.user,
+//         name: user.username,
+//         rating: rating,
+//         comment: review,
+//       };
+//       movie.reviews.push(newReview);
+//       movie.noOfReviews += 1;
+//     }
+
+//     totalRating += rating;
+//     // Recalculate the average rating
+//     movie.ratings = totalRating / movie.reviews.length;
+
+//     await movie.save();
+
+//     res.json(movie);
+//   } catch (error) {
+//     console.error('Error adding or updating review:', error);
+//     return next(new ApiError(500 , 'An error occurred while adding or updating the rating and review'));
+//   }
+// };
+>>>>>>> Stashed changes
 
 
 const rateMovie = async (req, res, next) => {
@@ -119,12 +173,11 @@ const rateMovie = async (req, res, next) => {
       return next(new ApiError(404 , 'Movie not found'));
     }
 
-    let totalRating = movie.reviews.reduce((acc, review) => acc + review.rating, 0);
+    // Find existing review by this user
     const existingReviewIndex = movie.reviews.findIndex(r => r.user.toString() === req.user);
 
     if (existingReviewIndex !== -1) {
       // Update existing review
-      totalRating -= movie.reviews[existingReviewIndex].rating;
       movie.reviews[existingReviewIndex].rating = rating;
       movie.reviews[existingReviewIndex].comment = review;
     } else {
@@ -139,18 +192,19 @@ const rateMovie = async (req, res, next) => {
       movie.noOfReviews += 1;
     }
 
-    totalRating += rating;
-    // Recalculate the average rating
-    movie.ratings = totalRating / movie.reviews.length;
+    // Calculate total rating and average rating
+    const totalRating = movie.reviews.reduce((acc, review) => acc + review.rating, 0);
+    movie.ratings = parseFloat((totalRating / movie.reviews.length).toFixed(2));
 
     await movie.save();
 
     res.json(movie);
   } catch (error) {
-    // console.error('Error adding or updating review:', error);
+    console.error('Error adding or updating review:', error);
     return next(new ApiError(500 , 'An error occurred while adding or updating the rating and review'));
   }
 };
+
 
 const getMovies = async (req, res, next) => {
   const { genre } = req.query;
