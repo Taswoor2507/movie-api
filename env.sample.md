@@ -1,3 +1,9 @@
-PORT  =  4040
-MONGO_URI = 
-OMDB_API_KEY =
+PORT=4080
+MONGO_URI=mongodb+srv://isroo0522:isroo0522@cluster0.lp7ygue.mongodb.net
+OMDB_API_KEY=7498ed6
+EMAIL=isroo0522@gmail.com
+EMAIL_PASSWORD=yencabczivrhokcb
+JWT_SECRET=your_jwt_secret
+JWT_REFRESH_SECRET=your_refresh_secret
+JWT_ACCESS_EXPIRE=1h
+JWT_REFRESH_EXPIRE=10d
