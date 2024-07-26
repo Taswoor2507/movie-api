@@ -98,8 +98,6 @@ const getMovieById = async (req, res, next) => {
   }
 };
 
-<<<<<<< Updated upstream
-=======
 // const rateMovie = async (req, res, next) => {
 //   const { id } = req.params;
 //   const { rating, review } = req.body;
@@ -151,7 +149,6 @@ const getMovieById = async (req, res, next) => {
 //     return next(new ApiError(500 , 'An error occurred while adding or updating the rating and review'));
 //   }
 // };
->>>>>>> Stashed changes
 
 
 const rateMovie = async (req, res, next) => {
