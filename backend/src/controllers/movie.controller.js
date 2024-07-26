@@ -72,21 +72,33 @@ const searchMovie = async (req, res, next) => {
     return next(new ApiError(500, "An error occurred while searching for the movie"));
   }
 };
+
+
 const getMovieById = async (req, res, next) => {
   const { id } = req.params;
 
   try {
-    const movie = await Movie.findById(id);
-    if (!movie) {
-      return next(new ApiError(404 , 'Movie not found'));
+    // Check if the movie is cached
+    const cachedMovie = await redis.get(`movie:${id}`);
+    if (cachedMovie) {
+      return res.json(JSON.parse(cachedMovie));
     }
 
+    // Fetch the movie from the database
+    const movie = await Movie.findById(id);
+    if (!movie) {
+      return next(new ApiError(404, 'Movie not found'));
+    }
+
+    // Cache the movie and return the response
+    await redis.set(`movie:${id}`, JSON.stringify(movie), 'EX', 3600); // Cache for 1 hour
     res.json(movie);
   } catch (error) {
-    // console.error('Error fetching movie by ID:', error);
-    return next(new ApiError(500 , 'An error occurred while fetching the movied'));
+    return next(new ApiError(500, 'An error occurred while fetching the movie'));
   }
 };
+
+
 
 const rateMovie = async (req, res, next) => {
   const { id } = req.params;
