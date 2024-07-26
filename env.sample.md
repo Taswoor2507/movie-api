@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 PORT=4080
+=======
+PORT= 
+>>>>>>> Stashed changes
 MONGO_URI=
 OMDB_API_KEY=
 EMAIL=
@@ -7,3 +11,4 @@ JWT_SECRET=
 JWT_REFRESH_SECRET=
 JWT_ACCESS_EXPIRE=1h
 JWT_REFRESH_EXPIRE=10d
+OMDB_BASE_URL=
