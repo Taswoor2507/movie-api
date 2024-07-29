@@ -210,7 +210,7 @@ const rateMovie = async (req, res, next) => {
 };
 
 
-const getMovies = async (req, res, next) => {
+const getMovies = async (req, res) => {
   const { genre } = req.query;
   const query = genre ? { genre: { $in: [genre] } } : {};
 
