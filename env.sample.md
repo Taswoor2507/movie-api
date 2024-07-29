@@ -1,4 +1,8 @@
+<<<<<<< Updated upstream
 PORT=4080
+=======
+PORT= 
+>>>>>>> Stashed changes
 MONGO_URI=
 OMDB_API_KEY=
 EMAIL=
