@@ -215,7 +215,7 @@ const getMovies = async (req, res) => {
   const query = genre ? { genre: { $in: [genre] } } : {};
 
   try {
-<<<<<<< Updated upstream
+
     // Check Redis cache
     const cacheKey = genre ? `genre:${genre}` : 'allMovies';
     const cachedMovies = await redis.get(cacheKey);
@@ -224,21 +224,12 @@ const getMovies = async (req, res) => {
     }
 
     // Fetch from MongoDB
-    const movies = await Movie.find(query);
 
-    // Store in Redis cache
-    await redis.set(cacheKey, JSON.stringify(movies), 'EX', 3600); // Cache for 1 hour
-
-    res.json(movies);
-  } catch (error) {
-    return next(new ApiError(500, "An error occurred while retrieving movies"));
-=======
     const movies = await Movie.find(query);
     const count = await Movie.countDocuments(query);
     res.json({ count, movies });
   } catch (error) {
     res.status(500).json({ error: 'An error occurred while retrieving movies' });
->>>>>>> Stashed changes
   }
 };
 

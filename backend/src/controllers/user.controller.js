@@ -3,6 +3,7 @@ import sendEmail from '../utils/email.send.js';
 import jwt from 'jsonwebtoken';
 import ApiError from '../utils/ErrorHandler.util.js';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
 
 // Load environment variables from .env file
 dotenv.config();
@@ -14,9 +15,9 @@ const generateToken = (user) => {
 };
 
 const registerUser = async (req, res, next) => {
-  const { username, email, fullName } = req.body;
+  const { username, email, fullName, password } = req.body;
 
-  if (!username || !email || !fullName) {
+  if (!username || !email || !fullName || !password) {
     return next(new ApiError(400, 'All fields are required'));
   }
 
@@ -36,7 +37,8 @@ const registerUser = async (req, res, next) => {
       return next(new ApiError(400, 'User already exists'));
     }
 
-    const newUser = new User({ username, email, fullName });
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const newUser = new User({ username, email, fullName, password: hashedPassword });
     await newUser.save();
 
     const emailHtml = `
@@ -55,6 +57,40 @@ const registerUser = async (req, res, next) => {
     next(new ApiError(500, 'An error occurred while registering the user', [], error.stack));
   }
 };
+
+const loginUser = async (req, res, next) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return next(new ApiError(400, 'Email and password are required'));
+  }
+
+  try {
+    const user = await User.findOne({ email });
+    if (!user) {
+      return next(new ApiError(404, 'User not found'));
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return next(new ApiError(401, 'Invalid password'));
+    }
+
+    if (user.status !== 'Active') {
+      return next(new ApiError(403, 'User account is not active'));
+    }
+
+    const { accessToken, refreshToken } = generateToken(user);
+    user.refreshToken = refreshToken;
+    await user.save();
+
+    res.status(200).json({ message: 'Login successful', user , accessToken, });
+  } catch (error) {
+    next(new ApiError(500, 'An error occurred while logging in', [], error.stack));
+  }
+};
+
+
 
 const verifyUser = async (req, res, next) => {
   const { userId } = req.params;
@@ -99,7 +135,7 @@ const activateUser = async (req, res, next) => {
     user.refreshToken = refreshToken;
     await user.save();
 
-    res.status(200).json({ message: 'User activated successfully', accessToken, refreshToken });
+    res.status(200).json({ message: 'User activated successfully'});
   } catch (error) {
     return next(new ApiError(500, 'An error occurred while activating the user', [], error.stack));
   }
@@ -191,6 +227,23 @@ const refreshAccessToken = async (req, res, next) => {
   }
 };
 
+const removeUser = async (req, res, next) => {
+  const { userId } = req.params;
+  try {
+    const user = await User.findByIdAndDelete(userId);
+
+    if (!user) {
+      return next(new ApiError(404, 'User not found'));
+    }
+
+    res.status(200).json({ message: 'User deleted successfully' });
+  } catch (error) {
+    next(new ApiError(500, 'An error occurred while deleting the user', [], error.stack));
+  }
+};
+
+
+
 export default {
   registerUser,
   verifyUser,
@@ -198,5 +251,7 @@ export default {
   findAllUsers,
   deleteUser,
   updateUser,
-  refreshAccessToken
+  refreshAccessToken,
+  removeUser,
+  loginUser,
 };
