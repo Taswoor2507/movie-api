@@ -215,6 +215,16 @@ const getMovies = async (req, res) => {
   const query = genre ? { genre: { $in: [genre] } } : {};
 
   try {
+
+    // Check Redis cache
+    const cacheKey = genre ? `genre:${genre}` : 'allMovies';
+    const cachedMovies = await redis.get(cacheKey);
+    if (cachedMovies) {
+      return res.json(JSON.parse(cachedMovies));
+    }
+
+    // Fetch from MongoDB
+
     const movies = await Movie.find(query);
     const count = await Movie.countDocuments(query);
     res.json({ count, movies });
