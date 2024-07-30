@@ -243,6 +243,23 @@ const removeUser = async (req, res, next) => {
 };
 
 
+const findUserId = async (req , res , next) => {
+  const {userId} = req.params;
+  try {
+    const user = await User.findById(userId)
+if (!user) {
+  return next(new ApiError(404 , "User not found"))
+}
+
+res.status(200).json({ message : 'User fetch successfully', user})
+
+
+  } catch (error) {
+    next(new ApiError(500, "An error occurred while retrieving the user"))
+  }
+}
+
+
 
 export default {
   registerUser,
@@ -254,4 +271,5 @@ export default {
   refreshAccessToken,
   removeUser,
   loginUser,
+  findUserId
 };
