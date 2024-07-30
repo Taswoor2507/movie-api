@@ -11,7 +11,8 @@ router.get('/all', userController.findAllUsers);
 router.delete('/:userId', userController.deleteUser) ;
 router.put('/:userId', userController.updateUser);
 router.post('/refresh-token', userController.refreshAccessToken);
-// router.delete('/:userId', userController.removeUser);
+router.get('/:userId', userController.findUserId)
+// router.delete('/:userIddjhcb', userController.removeUser);
 
 export default router;
     
