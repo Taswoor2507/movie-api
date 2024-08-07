@@ -210,12 +210,11 @@ const rateMovie = async (req, res, next) => {
 };
 
 
-const getMovies = async (req, res) => {
+const getMovies = async (req, res, next) => {
   const { genre } = req.query;
   const query = genre ? { genre: { $in: [genre] } } : {};
 
   try {
-
     // Check Redis cache
     const cacheKey = genre ? `genre:${genre}` : 'allMovies';
     const cachedMovies = await redis.get(cacheKey);
@@ -224,15 +223,16 @@ const getMovies = async (req, res) => {
     }
 
     // Fetch from MongoDB
-
     const movies = await Movie.find(query);
-    const count = await Movie.countDocuments(query);
-    res.json({ count, movies });
+
+    // Store in Redis cache
+    await redis.set(cacheKey, JSON.stringify(movies), 'EX', 3600); // Cache for 1 hour
+
+    res.json(movies);
   } catch (error) {
-    res.status(500).json({ error: 'An error occurred while retrieving movies' });
+    return next(new ApiError(500, "An error occurred while retrieving movies"));
   }
 };
-
 
 export default {
     searchMovie,
