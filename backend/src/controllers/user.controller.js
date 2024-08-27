@@ -86,7 +86,7 @@ const verifyOTP = async (req, res, next) => {
 
     if (otpAge > 40) {
       otpStore.delete(email); 
-      return next(new ApiError(400, 'OTP has expired. Please request a new one.'));
+      return next(new ApiError(400, 'OTP has expired. Please request a new one'));
     }
 
     if (storedData.otp !== otp) {
