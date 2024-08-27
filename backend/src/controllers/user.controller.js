@@ -50,7 +50,6 @@ const registerUser = async (req, res, next) => {
     const otpCreatedAt = Date.now(); 
 
     otpStore.set(email, { username, email, fullName, password: hashedPassword, otp, otpCreatedAt });
-wUser.save()
 
     const emailHtml = `
       <p>Dear ${fullName},</p>
@@ -72,14 +71,14 @@ const verifyOTP = async (req, res, next) => {
   const { email, otp } = req.body;
 
   if (!email || !otp) {
-    return next(new ApiError(400, 'Email and OTP are required.'));
+    return next(new ApiError(400, 'Email and OTP are required'));
   }
 
   try {
     const storedData = otpStore.get(email);
 
     if (!storedData) {
-      return next(new ApiError(400, 'No OTP found for this email.'));
+      return next(new ApiError(400, 'No OTP found for this email'));
     }
 
     const currentTime = Date.now();
@@ -117,10 +116,6 @@ const verifyOTP = async (req, res, next) => {
     next(new ApiError(500, 'An error occurred while verifying the OTP.'));
   }
 };
-
-
-
-
 
 
 
