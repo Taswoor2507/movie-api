@@ -30,7 +30,7 @@ const registerUser = async (req, res, next) => {
   const { username, email, fullName, password } = req.body;
 
   if (!username || !email || !fullName || !password) {
-    return next(new ApiError(400, 'All fields are required.'));
+    return next(new ApiError(400, 'All fields are required'));
   }
 
   try {
