@@ -3,8 +3,8 @@ import sendEmail from '../utils/email.send.js';
 import jwt from 'jsonwebtoken';
 import ApiError from '../utils/ErrorHandler.util.js';
 import dotenv from 'dotenv';
+import bcrypt from 'bcryptjs';
 
-// Load environment variables from .env file
 dotenv.config();
 
 const generateToken = (user) => {
@@ -13,190 +13,277 @@ const generateToken = (user) => {
   return { accessToken, refreshToken };
 };
 
-const registerUser = async (req, res, next) => {
-  const { username, email, fullName } = req.body;
 
-  if (!username || !email || !fullName) {
-    return next(new ApiError(400, 'All fields are required'));
+
+
+
+
+const generateOTP = () => {
+  return Math.floor(100000 + Math.random() * 900000).toString(); 
+};
+
+const otpStore = new Map(); 
+
+
+
+const registerUser = async (req, res, next) => {
+  const { username, email, fullName, password } = req.body;
+
+  if (!username || !email || !fullName || !password) {
+    return next(new ApiError(400, 'All fields are required.'));
   }
 
   try {
     const existingUser = await User.findOne({ email });
+
     if (existingUser) {
       if (existingUser.status === 'Pending') {
-        const emailHtml = `
-          <p>Dear ${existingUser.fullName},</p>
-          <p>Your account is pending activation. Please verify your email by clicking the link below:</p>
-          <p><a href="${req.protocol}://${req.get("host")}/api/users/verify/${existingUser._id}">Verify Email</a></p>
-        `;
-        await sendEmail(email, 'Email Verification', emailHtml);
-
-        return res.status(400).json({ message: 'Verification email sent' });
+        await User.findByIdAndDelete(existingUser._id);
+      } else {
+        return next(new ApiError(400, 'User already exists.'));
       }
-      return next(new ApiError(400, 'User already exists'));
     }
 
-    const newUser = new User({ username, email, fullName });
-    await newUser.save();
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const otp = generateOTP();
+    const otpCreatedAt = Date.now(); 
+
+    otpStore.set(email, { username, email, fullName, password: hashedPassword, otp, otpCreatedAt });
 
     const emailHtml = `
       <p>Dear ${fullName},</p>
-      <p>Your account has been created successfully.</p>
-      <p>Username: ${username}</p>
-      <p>Status: Pending</p>
-      <p>Please verify your email by clicking the link below:</p>
-      <p><a href="${req.protocol}://${req.get("host")}/api/users/verify/${newUser._id}">Verify Email</a></p>
+      <p>Your OTP for account verification is:</p>
+      <h2 style="color: #4CAF50;">${otp}</h2>
+      <p>Please use this OTP to verify your account.</p>
     `;
-    await sendEmail(email, 'Email Verification', emailHtml);
+    await sendEmail(email, 'Account Verification OTP', emailHtml);
 
-    res.status(201).json({ message: 'User registered successfully and verification email sent', user: newUser });
+    res.status(201).json({ message: 'OTP sent to your email. Please verify to complete registration.' });
   } catch (error) {
     console.error('Error during user registration:', error);
-    next(new ApiError(500, 'An error occurred while registering the user', [], error.stack));
+    next(new ApiError(500, 'An error occurred while registering the user.'));
   }
 };
 
-const verifyUser = async (req, res, next) => {
-  const { userId } = req.params;
+const verifyOTP = async (req, res, next) => {
+  const { email, otp } = req.body;
+
+  if (!email || !otp) {
+    return next(new ApiError(400, 'Email and OTP are required.'));
+  }
 
   try {
-    const user = await User.findById(userId);
+    const storedData = otpStore.get(email);
 
-    if (!user) {
-      return next(new ApiError(404, 'User not found'));
+    if (!storedData) {
+      return next(new ApiError(400, 'No OTP found for this email.'));
     }
 
-    res.send(`
-      <html>
-      <body>
-        <p>User: ${user.username}</p>
-        <p>Current Status: ${user.status}</p>
-        <p>Do you want to activate your account?</p>
-        <form action="/api/users/activate/${userId}" method="post">
-          <button type="submit">Yes</button>
-        </form>
-      </body>
-      </html>
-    `);
+    const currentTime = Date.now();
+    const otpAge = (currentTime - storedData.otpCreatedAt) / 1000; 
+
+    if (otpAge > 40) {
+      otpStore.delete(email); 
+      return next(new ApiError(400, 'OTP has expired. Please request a new one.'));
+    }
+
+    if (storedData.otp !== otp) {
+      return next(new ApiError(400, 'Invalid OTP.'));
+    }
+
+    const newUser = new User({
+      username: storedData.username,
+      email: storedData.email,
+      fullName: storedData.fullName,
+      password: storedData.password,
+      status: 'Active'
+    });
+
+    await newUser.save();
+    otpStore.delete(email);
+
+    const { accessToken, refreshToken } = generateToken(newUser);
+    newUser.refreshToken = refreshToken;
+    await newUser.save();
+
+    res.status(200).json({ message: 'User registered and verified successfully', user: newUser, accessToken });
   } catch (error) {
-    next(new ApiError(500, 'An error occurred while verifying the user', [], error.stack));
+    console.error('Error during OTP verification:', error);
+    next(new ApiError(500, 'An error occurred while verifying the OTP.'));
   }
 };
 
-const activateUser = async (req, res, next) => {
-  const { userId } = req.params;
+
+
+
+
+
+
+const loginUser = async (req, res, next) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return next(new ApiError(400, 'Email and password are required'));
+  }
 
   try {
-    const user = await User.findById(userId);
-
+    const user = await User.findOne({ email });
     if (!user) {
       return next(new ApiError(404, 'User not found'));
     }
 
-    user.status = 'Active';
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return next(new ApiError(401, 'Invalid password'));
+    }
+
+    if (user.status !== 'Active') {
+      return next(new ApiError(403, 'User account is not active'));
+    }
 
     const { accessToken, refreshToken } = generateToken(user);
     user.refreshToken = refreshToken;
     await user.save();
-
-    res.status(200).json({ message: 'User activated successfully', accessToken, refreshToken });
+    res.status(200).json({ message: 'Login successful', user, accessToken });
   } catch (error) {
-    return next(new ApiError(500, 'An error occurred while activating the user', [], error.stack));
+    console.error('Login Error:', error);
+    next(new ApiError(500, 'An error occurred while logging in'));
   }
 };
+      const findAllUsers = async (req, res, next) => {
+        try {
+          const users = await User.find({});
+          res.status(200).json(users);
+        } catch (error) {
+          return next(new ApiError(500, 'An error occurred while retrieving users'));
+        }
+      };
 
-const findAllUsers = async (req, res, next) => {
-  try {
-    const users = await User.find({});
-    res.status(200).json(users);
-  } catch (error) {
-    return next(new ApiError(500, 'An error occurred while retrieving users', [], error.stack));
-  }
-};
+      const deactivateUser = async (req, res, next) => {
+        const { userId } = req.params;
 
-const deleteUser = async (req, res, next) => {
-  const { userId } = req.params;
+        try {
+          const user = await User.findById(userId);
+          
+          
 
-  try {
-    const user = await User.findById(userId);
+          if (!user) {
+            return next(new ApiError(404, 'User not found'));
+          }
 
-    if (!user) {
-      return next(new ApiError(404, 'User not found'));
-    }
+          user.status = 'Pending';
+          user.refreshToken = null;
+          
+          await user.save();
 
-    user.status = 'Pending';
-    user.refreshToken = null;
-    await user.save();
+          res.status(200).json({ message: 'User deactivate successfully' });
+        } catch (error) {
+          next(new ApiError(500, 'An error occurred while updating the user status'));
+        }
+      };
+      const updateUser = async (req, res, next) => {
+        const { userId } = req.params;
+        const { username, fullName, email } = req.body;
+      
+        if (!username && !fullName && !email) {
+          return next(new ApiError(400, 'At least one field is required.'));
+        }
+      
+        try {
+          const user = await User.findById(userId);
+      
+          if (!user) {
+            return next(new ApiError(404, 'User not found.'));
+          }
+      
+          if (user.status !== 'Active') {
+            return next(new ApiError(400, 'User is not active.'));
+          }
+      
+          if (username) user.username = username;
+          if (fullName) user.fullName = fullName;
+          if (email) user.email = email;
+      
+          await user.save();
+      
+          res.status(200).json({ message: 'User updated successfully', user });
+        } catch (error) {
+          next(new ApiError(500, 'An error occurred while updating the user.'));
+        }
+      };
+      
 
-    res.status(200).json({ message: 'User status set to pending and refresh token removed successfully' });
-  } catch (error) {
-    next(new ApiError(500, 'An error occurred while updating the user status', [], error.stack));
-  }
-};
+      const refreshAccessToken = async (req, res, next) => {
+        const { refreshToken } = req.body;
 
-const updateUser = async (req, res, next) => {
-  const { userId } = req.params;
-  const { username, fullName, email } = req.body;
+        if (!refreshToken) {
+          return next(new ApiError(400, 'Refresh token is required'));
+        }
 
-  if (!username || !fullName || !email) {
-    return next(new ApiError(400, 'All fields are required'));
-  }
+        try {
+          const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
+          const user = await User.findById(decoded.id);
 
-  try {
-    const user = await User.findById(userId);
+          if (!user) {
+            return next(new ApiError(404, 'User not found'));
+          }
 
-    if (!user) {
-      return next(new ApiError(404, 'User not found'));
-    }
+          if (user.refreshToken !== refreshToken) {
+            return next(new ApiError(403, 'Invalid refresh token'));
+          }
 
-    if (user.status !== 'Active') {
-      return next(new ApiError(400, 'User is not active'));
-    }
+          const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_ACCESS_EXPIRE });
 
-    user.username = username;
-    user.fullName = fullName;
-    user.email = email;
-    await user.save();
+          res.status(200).json({ accessToken });
+        } catch (error) {
+          next(new ApiError(500, 'An error occurred while refreshing the access token'));
+        }
+      };
 
-    res.status(200).json({ message: 'User updated successfully', user });
-  } catch (error) {
-    next(new ApiError(500, 'An error occurred while updating the user', [], error.stack));
-  }
-};
+      const deleteUser = async (req, res, next) => {
+        const { userId } = req.params;
+        try {
+          const user = await User.findByIdAndDelete(userId);
 
-const refreshAccessToken = async (req, res, next) => {
-  const { refreshToken } = req.body;
+          if (!user) {
+            return next(new ApiError(404, 'User not found'));
+          }
 
-  if (!refreshToken) {
-    return next(new ApiError(400, 'Refresh token is required'));
-  }
+          res.status(200).json({ message: 'User deleted successfully' });
+        } catch (error) {
+          next(new ApiError(500, 'An error occurred while deleting the user'));
+        }
+      };
 
-  try {
-    const decoded = jwt.verify(refreshToken, process.env.JWT_REFRESH_SECRET);
-    const user = await User.findById(decoded.id);
 
-    if (!user) {
-      return next(new ApiError(404, 'User not found'));
-    }
+      const findUserId = async (req , res , next) => {
+        const {userId} = req.params;
+        try {
+          const user = await User.findById(userId)
+      if (!user) {
+        return next(new ApiError(404 , "User not found"))
+      }
 
-    if (user.refreshToken !== refreshToken) {
-      return next(new ApiError(403, 'Invalid refresh token'));
-    }
+      res.status(200).json({ message : 'User fetch successfully', user})
 
-    const accessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_ACCESS_EXPIRE });
 
-    res.status(200).json({ accessToken });
-  } catch (error) {
-    next(new ApiError(500, 'An error occurred while refreshing the access token', [], error.stack));
-  }
-};
+        } catch (error) {
+          next(new ApiError(500, "An error occurred while retrieving the user"))
+        }
+      }
 
-export default {
-  registerUser,
-  verifyUser,
-  activateUser,
-  findAllUsers,
-  deleteUser,
-  updateUser,
-  refreshAccessToken
-};
+    
+      
+
+
+      export default {
+        registerUser,
+        findAllUsers,
+        deactivateUser,
+        updateUser,
+        refreshAccessToken,
+        deleteUser,
+        loginUser,
+        findUserId,
+        verifyOTP
+      };
