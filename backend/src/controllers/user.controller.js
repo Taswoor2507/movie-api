@@ -45,10 +45,12 @@ const registerUser = async (req, res, next) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
     const otp = generateOTP();
     const otpCreatedAt = Date.now(); 
 
     otpStore.set(email, { username, email, fullName, password: hashedPassword, otp, otpCreatedAt });
+wUser.save()
 
     const emailHtml = `
       <p>Dear ${fullName},</p>
@@ -64,6 +66,7 @@ const registerUser = async (req, res, next) => {
     next(new ApiError(500, 'An error occurred while registering the user.'));
   }
 };
+
 
 const verifyOTP = async (req, res, next) => {
   const { email, otp } = req.body;
@@ -102,9 +105,11 @@ const verifyOTP = async (req, res, next) => {
     await newUser.save();
     otpStore.delete(email);
 
+
     const { accessToken, refreshToken } = generateToken(newUser);
     newUser.refreshToken = refreshToken;
     await newUser.save();
+
 
     res.status(200).json({ message: 'User registered and verified successfully', user: newUser, accessToken });
   } catch (error) {
@@ -272,6 +277,7 @@ const loginUser = async (req, res, next) => {
         }
       }
 
+
     
       
 
@@ -287,3 +293,4 @@ const loginUser = async (req, res, next) => {
         findUserId,
         verifyOTP
       };
+
