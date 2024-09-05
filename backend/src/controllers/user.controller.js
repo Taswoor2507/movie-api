@@ -17,12 +17,12 @@ const generateToken = (user) => {
 
 
 
+const otpStore = new Map(); 
 
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString(); 
 };
 
-const otpStore = new Map(); 
 
 
 
@@ -47,7 +47,7 @@ const registerUser = async (req, res, next) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const otp = generateOTP();
-    const otpCreatedAt = Date.now(); 
+    const otpCreatedAt = Date.now();  //ms
 
     otpStore.set(email, { username, email, fullName, password: hashedPassword, otp, otpCreatedAt });
 
@@ -81,7 +81,7 @@ const verifyOTP = async (req, res, next) => {
       return next(new ApiError(400, 'No OTP found for this email'));
     }
 
-    const currentTime = Date.now();
+    const currentTime = Date.now(); 
     const otpAge = (currentTime - storedData.otpCreatedAt) / 1000; 
 
     if (otpAge > 40) {
