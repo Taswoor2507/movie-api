@@ -13,17 +13,9 @@ const generateToken = (user) => {
   return { accessToken, refreshToken };
 };
 
-
-
-
-
-const otpStore = new Map(); 
-
 const generateOTP = () => {
   return Math.floor(100000 + Math.random() * 900000).toString(); 
 };
-
-
 
 
 const registerUser = async (req, res, next) => {
@@ -38,18 +30,22 @@ const registerUser = async (req, res, next) => {
 
     if (existingUser) {
       if (existingUser.status === 'Pending') {
-        await User.findByIdAndDelete(existingUser._id);
+        existingUser.status = 'Active';
+        await existingUser.save();
+        return res.status(200).json({ message: 'Your account is activated.', existingUser });
       } else {
-        return next(new ApiError(400, 'User already exists.'));
+        return next(new ApiError(400, 'User already exists and is active.'));
       }
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const otp = generateOTP();
-    const otpCreatedAt = Date.now();  //ms
+    const otpCreatedAt = Date.now(); 
+    console.log(otpCreatedAt);
+    
 
-    otpStore.set(email, { username, email, fullName, password: hashedPassword, otp, otpCreatedAt });
+   otpStore.set(email, { username, email, fullName, password: hashedPassword, otp, otpCreatedAt });
 
     const emailHtml = `
       <p>Dear ${fullName},</p>
@@ -57,6 +53,7 @@ const registerUser = async (req, res, next) => {
       <h2 style="color: #4CAF50;">${otp}</h2>
       <p>Please use this OTP to verify your account.</p>
     `;
+
     await sendEmail(email, 'Account Verification OTP', emailHtml);
 
     res.status(201).json({ message: 'OTP sent to your email. Please verify to complete registration.' });
@@ -81,12 +78,12 @@ const verifyOTP = async (req, res, next) => {
       return next(new ApiError(400, 'No OTP found for this email'));
     }
 
-    const currentTime = Date.now(); 
-    const otpAge = (currentTime - storedData.otpCreatedAt) / 1000; 
+    const currentTime = Date.now();
+    const otpAge = (currentTime - storedData.otpCreatedAt) / 1000;
 
     if (otpAge > 40) {
-      otpStore.delete(email); 
-      return next(new ApiError(400, 'OTP has expired. Please request a new one'));
+      otpStore.delete(email);
+      return next(new ApiError(400, 'OTP has expired. Please request a new one.'));
     }
 
     if (storedData.otp !== otp) {
@@ -102,15 +99,10 @@ const verifyOTP = async (req, res, next) => {
     });
 
     await newUser.save();
+
     otpStore.delete(email);
 
-
-    const { accessToken, refreshToken } = generateToken(newUser);
-    newUser.refreshToken = refreshToken;
-    await newUser.save();
-
-
-    res.status(200).json({ message: 'User registered and verified successfully', user: newUser, accessToken });
+    res.status(200).json({ message: 'User registered and verified successfully.', newUser });
   } catch (error) {
     console.error('Error during OTP verification:', error);
     next(new ApiError(500, 'An error occurred while verifying the OTP.'));
@@ -118,8 +110,7 @@ const verifyOTP = async (req, res, next) => {
 };
 
 
-
-const loginUser = async (req, res, next) => {
+const loginUser = async (req, res, next) => {   
   const { email, password } = req.body;
 
   if (!email || !password) {
@@ -143,13 +134,21 @@ const loginUser = async (req, res, next) => {
 
     const { accessToken, refreshToken } = generateToken(user);
     user.refreshToken = refreshToken;
+
+    user.loginDate = new Date();
+
     await user.save();
+
     res.status(200).json({ message: 'Login successful', user, accessToken });
   } catch (error) {
     console.error('Login Error:', error);
     next(new ApiError(500, 'An error occurred while logging in'));
   }
+
 };
+
+
+
       const findAllUsers = async (req, res, next) => {
         try {
           const users = await User.find({});
@@ -286,6 +285,6 @@ const loginUser = async (req, res, next) => {
         deleteUser,
         loginUser,
         findUserId,
-        verifyOTP
+        verifyOTP,
       };
 
