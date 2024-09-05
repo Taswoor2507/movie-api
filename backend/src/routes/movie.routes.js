@@ -5,7 +5,8 @@ import auth from '../middlewares/auth.js';
 const router = express.Router();
 
 router.get('/search', movieController.searchMovie);
-router.get('/:id', movieController.getMovieById);
-router.get('/', movieController.getMovies);
+router.get('/getById/:id', movieController.getMovieById);
+router.get('/all', movieController.getAllMovies);
+router.get('/', movieController.getMoviesByGenre);
 router.post('/:id/rate',auth ,  movieController.rateMovie);
 export default router;
