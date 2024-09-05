@@ -7,8 +7,6 @@ dotenv.config();
 const OMDB_API_KEY = process.env.OMDB_API_KEY;
 const OMDB_BASE_URL = process.env.OMDB_BASE_URL;
 
-// console.log('OMDB_API_KEY in omdbService:', OMDB_API_KEY); // Should log your API key
-
 async function fetchMovieByTitle(title) {
   try {
     const response = await axios.get(OMDB_BASE_URL, {
