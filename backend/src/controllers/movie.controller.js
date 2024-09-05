@@ -166,6 +166,9 @@ const rateMovie = async (req, res, next) => {
     return next(new ApiError(400 , 'Rating and review are required'));
   }
 
+  if(rating > 5){
+    return next(new ApiError(400, 'Rating should be between 1 and 5'));
+  }
   try {
     const user = await User.findById(req.user);
     if (!user) {
